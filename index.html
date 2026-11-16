@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apresentação de Formatura / Alunos</title>
+    <title>Apresentação de Formatura</title>
     <style>
         * {
             margin: 0;
@@ -31,6 +31,11 @@
             gap: 20px;
         }
 
+        #status-carregamento {
+            font-size: 1.2rem;
+            color: #aaaaaa;
+        }
+
         button {
             padding: 15px 40px;
             font-size: 1.5rem;
@@ -41,6 +46,7 @@
             cursor: pointer;
             font-weight: bold;
             transition: transform 0.2s, background-color 0.2s;
+            display: none; /* Aparece só depois que carregar a lista do GitHub */
         }
 
         button:hover {
@@ -49,10 +55,10 @@
         }
 
         #nome-aluno {
-            font-size: 5vw; /* Tamanho responsivo gigante */
+            font-size: 5.5vw;
             font-weight: bold;
             letter-spacing: 2px;
-            padding: 0 20px;
+            padding: 0 30px;
             opacity: 0;
             transition: opacity 1s ease-in-out;
         }
@@ -68,6 +74,7 @@
             width: 100%;
             height: 6px;
             background-color: #222222;
+            display: none;
         }
 
         #barra-progresso {
@@ -79,16 +86,14 @@
 </head>
 <body>
 
-    <!-- Botão necessário porque navegadores bloqueiam áudio automático sem clique -->
     <div id="tela-inicial">
+        <div id="status-carregamento">Buscando lista de alunos no GitHub...</div>
         <button id="btn-iniciar">Iniciar Apresentação</button>
     </div>
 
-    <!-- Local onde o nome aparecerá -->
     <div id="nome-aluno"></div>
 
-    <!-- Barra discreta no rodapé mostrando os 30 segundos -->
-    <div id="barra-progresso-container" style="display: none;">
+    <div id="barra-progresso-container">
         <div id="barra-progresso"></div>
     </div>
 
@@ -96,36 +101,88 @@
 
     <script>
         // =====================================================================
-        // CONFIGURAÇÃO: Coloque aqui o nome EXATO das pastas criadas em /nomes/
+        // CONFIGURAÇÕES DO SEU REPOSITÓRIO
         // =====================================================================
-        const alunos = [
-            "Ana Clara Silva",
-            "João Pedro Santos",
-            "Maria Eduarda Oliveira"
-        ];
-
-        // Nome padrão do arquivo mp3 dentro de cada pasta
-        const nomeArquivoAudio = "musica.mp3";
-        
-        // Tempo de exibição em segundos
-        const tempoSegundos = 30; 
+        const USUARIO = "nunesxyz";
+        const REPOSITORIO = "nunesxyz.github.io";
+        const BRANCH = "main";
+        const PASTA_RAIZ = "nomes";
+        const TEMPO_SEGUNDOS = 30;
         // =====================================================================
 
+        let listaApresentacao = [];
         let indiceAtual = 0;
-        let temporizador = null;
 
-        const telaInicial = document.getElementById('tela-inicial');
+        const statusCarregamento = document.getElementById('status-carregamento');
         const btnIniciar = document.getElementById('btn-iniciar');
+        const telaInicial = document.getElementById('tela-inicial');
         const elementoNome = document.getElementById('nome-aluno');
         const playerAudio = document.getElementById('player-audio');
         const barraContainer = document.getElementById('barra-progresso-container');
         const barraProgresso = document.getElementById('barra-progresso');
 
+        // Busca automaticamente todas as pastas e arquivos MP3 no repositório
+        async function carregarDadosDoGitHub() {
+            try {
+                const urlApi = `https://github.com{USUARIO}/${REPOSITORIO}/git/trees/${BRANCH}?recursive=1`;
+                const resposta = await fetch(urlApi);
+                
+                if (!resposta.ok) {
+                    throw new Error("Erro ao acessar a API do GitHub.");
+                }
+
+                const dados = await resposta.json();
+                const mapaAlunos = new Map();
+
+                // Filtra tudo que está dentro da pasta "nomes/"
+                dados.tree.forEach(item => {
+                    if (item.path.startsWith(`${PASTA_RAIZ}/`)) {
+                        const partes = item.path.split('/');
+                        // partes[0] = "nomes"
+                        // partes[1] = "Nome do Aluno"
+                        // partes[2] = "arquivo.mp3"
+
+                        if (partes.length >= 2 && partes[1]) {
+                            const nomeAluno = partes[1];
+                            
+                            // Garante que o aluno exista na lista mesmo se ainda não tiver mp3
+                            if (!mapaAlunos.has(nomeAluno)) {
+                                mapaAlunos.set(nomeAluno, null);
+                            }
+
+                            // Se for um arquivo .mp3 dentro da pasta do aluno, salva o caminho
+                            if (partes.length === 3 && item.type === 'blob' && item.path.toLowerCase().endsWith('.mp3')) {
+                                mapaAlunos.set(nomeAluno, item.path);
+                            }
+                        }
+                    }
+                });
+
+                // Converte para lista e ordena em ordem alfabética
+                listaApresentacao = Array.from(mapaAlunos, ([nome, caminhoAudio]) => ({
+                    nome,
+                    caminhoAudio
+                })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+                if (listaApresentacao.length === 0) {
+                    statusCarregamento.textContent = "Nenhuma pasta de aluno encontrada em /nomes/.";
+                    return;
+                }
+
+                statusCarregamento.textContent = `${listaApresentacao.length} aluno(s) carregado(s) com sucesso.`;
+                btnIniciar.style.display = 'block';
+
+            } catch (erro) {
+                console.error(erro);
+                statusCarregamento.textContent = "Erro ao carregar pastas do GitHub. Verifique sua conexão.";
+            }
+        }
+
+        // Inicia ao clicar no botão
         btnIniciar.addEventListener('click', () => {
             telaInicial.style.display = 'none';
             barraContainer.style.display = 'block';
-            
-            // Tenta colocar em tela cheia automaticamente
+
             if (document.documentElement.requestFullscreen) {
                 document.documentElement.requestFullscreen().catch(() => {});
             }
@@ -134,12 +191,11 @@
         });
 
         function exibirProximoAluno() {
-            // Verifica se acabaram os alunos
-            if (indiceAtual >= alunos.length) {
+            if (indiceAtual >= listaApresentacao.length) {
                 elementoNome.classList.remove('visivel');
                 playerAudio.pause();
                 barraContainer.style.display = 'none';
-                
+
                 setTimeout(() => {
                     elementoNome.textContent = "Fim da Apresentação";
                     elementoNome.classList.add('visivel');
@@ -147,44 +203,49 @@
                 return;
             }
 
-            const nomeAtual = alunos[indiceAtual];
-
-            // Faz o nome anterior sumir suavemente antes de trocar
+            const alunoAtual = listaApresentacao[indiceAtual];
             elementoNome.classList.remove('visivel');
 
             setTimeout(() => {
-                // Atualiza o texto do nome
-                elementoNome.textContent = nomeAtual;
+                // Exibe o nome exato da pasta
+                elementoNome.textContent = alunoAtual.nome;
                 elementoNome.classList.add('visivel');
 
-                // Monta o caminho: nomes/Nome do Aluno/musica.mp3
-                // encodeURIComponent garante que espaços e acentos funcionem no GitHub
-                const caminhoAudio = `nomes/${encodeURIComponent(nomeAtual)}/${nomeArquivoAudio}`;
-                
-                playerAudio.src = caminhoAudio;
-                playerAudio.currentTime = 0;
-                playerAudio.play().catch(erro => {
-                    console.warn(`Não foi possível tocar o áudio de ${nomeAtual}:`, erro);
-                });
+                // Toca o MP3 encontrado dentro da pasta (mesmo com espaços, parênteses ou acentos)
+                if (alunoAtual.caminhoAudio) {
+                    const caminhoCodificado = alunoAtual.caminhoAudio
+                        .split('/')
+                        .map(parte => encodeURIComponent(parte))
+                        .join('/');
 
-                // Animação da barra de 30 segundos
+                    playerAudio.src = caminhoCodificado;
+                    playerAudio.currentTime = 0;
+                    playerAudio.play().catch(err => {
+                        console.warn(`Erro ao reproduzir áudio de ${alunoAtual.nome}:`, err);
+                    });
+                }
+
+                // Animação da barra de progresso
                 barraProgresso.style.transition = 'none';
                 barraProgresso.style.width = '0%';
-                
+
                 setTimeout(() => {
-                    barraProgresso.style.transition = `width ${tempoSegundos}s linear`;
+                    barraProgresso.style.transition = `width ${TEMPO_SEGUNDOS}s linear`;
                     barraProgresso.style.width = '100%';
                 }, 50);
 
-                // Aguarda 30 segundos para ir ao próximo aluno
-                temporizador = setTimeout(() => {
+                // Aguarda 30 segundos e passa para o próximo
+                setTimeout(() => {
                     playerAudio.pause();
                     indiceAtual++;
                     exibirProximoAluno();
-                }, tempoSegundos * 1000);
+                }, TEMPO_SEGUNDOS * 1000);
 
-            }, 800); // Tempo da transição visual entre nomes
+            }, 800);
         }
+
+        // Executa a busca assim que a página abre
+        carregarDadosDoGitHub();
     </script>
 </body>
 </html>
