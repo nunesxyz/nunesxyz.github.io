@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apresentação de Formatura / Alunos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        #tela-inicial {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            background-color: #e0e0e0;
+        }
+
+        #nome-aluno {
+            font-size: 5vw; /* Tamanho responsivo gigante */
+            font-weight: bold;
+            letter-spacing: 2px;
+            padding: 0 20px;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #nome-aluno.visivel {
+            opacity: 1;
+        }
+
+        #barra-progresso-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background-color: #222222;
+        }
+
+        #barra-progresso {
+            height: 100%;
+            width: 0%;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botão necessário porque navegadores bloqueiam áudio automático sem clique -->
+    <div id="tela-inicial">
+        <button id="btn-iniciar">Iniciar Apresentação</button>
+    </div>
+
+    <!-- Local onde o nome aparecerá -->
+    <div id="nome-aluno"></div>
+
+    <!-- Barra discreta no rodapé mostrando os 30 segundos -->
+    <div id="barra-progresso-container" style="display: none;">
+        <div id="barra-progresso"></div>
+    </div>
+
+    <audio id="player-audio"></audio>
+
+    <script>
+        // =====================================================================
+        // CONFIGURAÇÃO: Coloque aqui o nome EXATO das pastas criadas em /nomes/
+        // =====================================================================
+        const alunos = [
+            "Ana Clara Silva",
+            "João Pedro Santos",
+            "Maria Eduarda Oliveira"
+        ];
+
+        // Nome padrão do arquivo mp3 dentro de cada pasta
+        const nomeArquivoAudio = "musica.mp3";
+        
+        // Tempo de exibição em segundos
+        const tempoSegundos = 30; 
+        // =====================================================================
+
+        let indiceAtual = 0;
+        let temporizador = null;
+
+        const telaInicial = document.getElementById('tela-inicial');
+        const btnIniciar = document.getElementById('btn-iniciar');
+        const elementoNome = document.getElementById('nome-aluno');
+        const playerAudio = document.getElementById('player-audio');
+        const barraContainer = document.getElementById('barra-progresso-container');
+        const barraProgresso = document.getElementById('barra-progresso');
+
+        btnIniciar.addEventListener('click', () => {
+            telaInicial.style.display = 'none';
+            barraContainer.style.display = 'block';
+            
+            // Tenta colocar em tela cheia automaticamente
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            }
+
+            exibirProximoAluno();
+        });
+
+        function exibirProximoAluno() {
+            // Verifica se acabaram os alunos
+            if (indiceAtual >= alunos.length) {
+                elementoNome.classList.remove('visivel');
+                playerAudio.pause();
+                barraContainer.style.display = 'none';
+                
+                setTimeout(() => {
+                    elementoNome.textContent = "Fim da Apresentação";
+                    elementoNome.classList.add('visivel');
+                }, 1000);
+                return;
+            }
+
+            const nomeAtual = alunos[indiceAtual];
+
+            // Faz o nome anterior sumir suavemente antes de trocar
+            elementoNome.classList.remove('visivel');
+
+            setTimeout(() => {
+                // Atualiza o texto do nome
+                elementoNome.textContent = nomeAtual;
+                elementoNome.classList.add('visivel');
+
+                // Monta o caminho: nomes/Nome do Aluno/musica.mp3
+                // encodeURIComponent garante que espaços e acentos funcionem no GitHub
+                const caminhoAudio = `nomes/${encodeURIComponent(nomeAtual)}/${nomeArquivoAudio}`;
+                
+                playerAudio.src = caminhoAudio;
+                playerAudio.currentTime = 0;
+                playerAudio.play().catch(erro => {
+                    console.warn(`Não foi possível tocar o áudio de ${nomeAtual}:`, erro);
+                });
+
+                // Animação da barra de 30 segundos
+                barraProgresso.style.transition = 'none';
+                barraProgresso.style.width = '0%';
+                
+                setTimeout(() => {
+                    barraProgresso.style.transition = `width ${tempoSegundos}s linear`;
+                    barraProgresso.style.width = '100%';
+                }, 50);
+
+                // Aguarda 30 segundos para ir ao próximo aluno
+                temporizador = setTimeout(() => {
+                    playerAudio.pause();
+                    indiceAtual++;
+                    exibirProximoAluno();
+                }, tempoSegundos * 1000);
+
+            }, 800); // Tempo da transição visual entre nomes
+        }
+    </script>
+</body>
+</html>
