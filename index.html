@@ -46,7 +46,7 @@
             cursor: pointer;
             font-weight: bold;
             transition: transform 0.2s, background-color 0.2s;
-            display: none; /* Aparece só depois que carregar a lista do GitHub */
+            display: none;
         }
 
         button:hover {
@@ -121,22 +121,21 @@
         const barraContainer = document.getElementById('barra-progresso-container');
         const barraProgresso = document.getElementById('barra-progresso');
 
-        // Busca automaticamente todas as pastas e arquivos MP3 no repositório
         async function carregarDadosDoGitHub() {
             try {
-                const urlApi = `https://github.com{USUARIO}/${REPOSITORIO}/git/trees/${BRANCH}?recursive=1`;
+                // URL correta da API do GitHub
+                const urlApi = "https://github.com" + USUARIO + "/" + REPOSITORIO + "/git/trees/" + BRANCH + "?recursive=1";
                 const resposta = await fetch(urlApi);
                 
                 if (!resposta.ok) {
-                    throw new Error("Erro ao acessar a API do GitHub.");
+                    throw new Error("Erro HTTP: " + resposta.status);
                 }
 
                 const dados = await resposta.json();
                 const mapaAlunos = new Map();
 
-                // Filtra tudo que está dentro da pasta "nomes/"
                 dados.tree.forEach(item => {
-                    if (item.path.startsWith(`${PASTA_RAIZ}/`)) {
+                    if (item.path.startsWith(PASTA_RAIZ + "/")) {
                         const partes = item.path.split('/');
                         // partes[0] = "nomes"
                         // partes[1] = "Nome do Aluno"
@@ -145,12 +144,10 @@
                         if (partes.length >= 2 && partes[1]) {
                             const nomeAluno = partes[1];
                             
-                            // Garante que o aluno exista na lista mesmo se ainda não tiver mp3
                             if (!mapaAlunos.has(nomeAluno)) {
                                 mapaAlunos.set(nomeAluno, null);
                             }
 
-                            // Se for um arquivo .mp3 dentro da pasta do aluno, salva o caminho
                             if (partes.length === 3 && item.type === 'blob' && item.path.toLowerCase().endsWith('.mp3')) {
                                 mapaAlunos.set(nomeAluno, item.path);
                             }
@@ -158,7 +155,6 @@
                     }
                 });
 
-                // Converte para lista e ordena em ordem alfabética
                 listaApresentacao = Array.from(mapaAlunos, ([nome, caminhoAudio]) => ({
                     nome,
                     caminhoAudio
@@ -169,16 +165,15 @@
                     return;
                 }
 
-                statusCarregamento.textContent = `${listaApresentacao.length} aluno(s) carregado(s) com sucesso.`;
+                statusCarregamento.textContent = listaApresentacao.length + " aluno(s) carregado(s) com sucesso.";
                 btnIniciar.style.display = 'block';
 
             } catch (erro) {
                 console.error(erro);
-                statusCarregamento.textContent = "Erro ao carregar pastas do GitHub. Verifique sua conexão.";
+                statusCarregamento.textContent = "Erro ao carregar pastas: " + erro.message;
             }
         }
 
-        // Inicia ao clicar no botão
         btnIniciar.addEventListener('click', () => {
             telaInicial.style.display = 'none';
             barraContainer.style.display = 'block';
@@ -207,11 +202,9 @@
             elementoNome.classList.remove('visivel');
 
             setTimeout(() => {
-                // Exibe o nome exato da pasta
                 elementoNome.textContent = alunoAtual.nome;
                 elementoNome.classList.add('visivel');
 
-                // Toca o MP3 encontrado dentro da pasta (mesmo com espaços, parênteses ou acentos)
                 if (alunoAtual.caminhoAudio) {
                     const caminhoCodificado = alunoAtual.caminhoAudio
                         .split('/')
@@ -221,20 +214,18 @@
                     playerAudio.src = caminhoCodificado;
                     playerAudio.currentTime = 0;
                     playerAudio.play().catch(err => {
-                        console.warn(`Erro ao reproduzir áudio de ${alunoAtual.nome}:`, err);
+                        console.warn("Erro ao reproduzir áudio de " + alunoAtual.nome + ":", err);
                     });
                 }
 
-                // Animação da barra de progresso
                 barraProgresso.style.transition = 'none';
                 barraProgresso.style.width = '0%';
 
                 setTimeout(() => {
-                    barraProgresso.style.transition = `width ${TEMPO_SEGUNDOS}s linear`;
+                    barraProgresso.style.transition = "width " + TEMPO_SEGUNDOS + "s linear";
                     barraProgresso.style.width = '100%';
                 }, 50);
 
-                // Aguarda 30 segundos e passa para o próximo
                 setTimeout(() => {
                     playerAudio.pause();
                     indiceAtual++;
@@ -244,7 +235,6 @@
             }, 800);
         }
 
-        // Executa a busca assim que a página abre
         carregarDadosDoGitHub();
     </script>
 </body>
