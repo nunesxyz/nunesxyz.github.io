@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090909">
+  <title>Bookmarklet</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090909;
+      --surface: #111111;
+      --surface-hover: #171717;
+      --text: #f5f5f5;
+      --muted: #a1a1aa;
+      --line: rgba(255, 255, 255, .78);
+      --soft-line: rgba(255, 255, 255, .18);
+      --accent: #ffffff;
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 42px 18px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(255,255,255,.085), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, a, textarea { font: inherit; }
+
+    .app {
+      width: min(100%, 720px);
+    }
+
+    .intro {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin: 0 0 24px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: linear-gradient(145deg, #202020, #0d0d0d);
+    }
+
+    .brand-icon svg { width: 21px; height: 21px; }
+
+    .intro p {
+      margin: 0;
+      color: #e5e5e5;
+      font-size: 14px;
+      letter-spacing: .01em;
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: rgba(17,17,17,.94);
+      box-shadow: 0 24px 80px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.045);
+    }
+
+    .section {
+      padding: 25px;
+    }
+
+    .section + .section {
+      border-top: 1px solid var(--soft-line);
+    }
+
+    .section-label {
+      margin: 0 0 15px;
+      color: #f4f4f5;
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+    }
+
+    .hint {
+      margin: -5px 0 17px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .options {
+      display: grid;
+      gap: 10px;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-height: 68px;
+      padding: 13px 14px;
+      border: 1px solid var(--soft-line);
+      border-radius: 16px;
+      background: #141414;
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease, opacity .18s ease;
+    }
+
+    .option:hover { background: var(--surface-hover); border-color: rgba(255,255,255,.42); }
+    .option:has(input:checked) { border-color: rgba(255,255,255,.76); background: #191919; }
+    .option:has(input:disabled) { cursor: not-allowed; opacity: .42; }
+
+    .option input {
+      width: 18px;
+      height: 18px;
+      margin: 0 1px 0 0;
+      flex: 0 0 auto;
+      accent-color: #fff;
+      cursor: pointer;
+    }
+
+    .option-copy { min-width: 0; flex: 1; }
+    .option-title {
+      display: block;
+      margin-bottom: 4px;
+      color: #f4f4f5;
+      font-size: 14px;
+      font-weight: 570;
+    }
+    .option-description {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .option-icon {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 auto;
+      color: #c8c8c8;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .button {
+      min-height: 45px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 17px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: #101010;
+      background: #f5f5f5;
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .15s ease, background .15s ease, opacity .15s ease;
+    }
+
+    .button:hover { background: #dedede; }
+    .button:active { transform: scale(.985); }
+    .button.secondary {
+      color: #f4f4f5;
+      background: #171717;
+      border-color: rgba(255,255,255,.48);
+    }
+    .button.secondary:hover { background: #222; }
+    .button:disabled { opacity: .35; cursor: not-allowed; }
+    .button svg { width: 16px; height: 16px; }
+
+    .bookmarklet-link {
+      width: 100%;
+      min-height: 57px;
+      justify-content: flex-start;
+      padding: 0 16px;
+      border-radius: 15px;
+      color: #111;
+      background: #f5f5f5;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-drag: element;
+    }
+    .bookmarklet-link:active { cursor: grabbing; }
+    .bookmarklet-link .drag-label { display: grid; gap: 3px; text-align: left; }
+    .bookmarklet-link strong { font-size: 13px; }
+    .bookmarklet-link small { color: #525252; font-size: 11px; font-weight: 450; }
+
+    .code-wrap {
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 112px;
+      display: block;
+      resize: vertical;
+      padding: 13px 14px;
+      border: 1px solid var(--soft-line);
+      border-radius: 15px;
+      outline: none;
+      color: #d4d4d8;
+      background: #090909;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    textarea:focus { border-color: rgba(255,255,255,.72); }
+
+    .status {
+      min-height: 18px;
+      margin: 12px 0 0;
+      color: #c9c9c9;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .footnote {
+      margin: 15px 1px 0;
+      color: #85858b;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 25px 12px; }
+      .section { padding: 19px; }
+      .panel { border-radius: 21px; }
+      .actions { flex-direction: column; }
+      .actions .button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="intro">
+      <div class="brand-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.75A2.75 2.75 0 0 1 8.75 2h9.5A2.75 2.75 0 0 1 21 4.75v16.5a.75.75 0 0 1-1.2.6L13.5 17l-6.3 4.85a.75.75 0 0 1-1.2-.6z"/><path d="M6 6H3.75A1.75 1.75 0 0 0 2 7.75v13.5a.75.75 0 0 0 1.2.6L6 19.7"/></svg>
+      </div>
+      <p>Feito por Estudantes para Estudantes</p>
+    </header>
+
+    <div class="panel">
+      <section class="section">
+        <p class="section-label">Personalizar funções</p>
+        <p class="hint">Marque os recursos que deseja incluir no seu bookmarklet. Você pode alterar as opções e gerar um novo código quando quiser.</p>
+
+        <div class="options">
+          <label class="option">
+            <input id="darkMode" type="checkbox" checked>
+            <span class="option-copy">
+              <span class="option-title">Tema escuro na página</span>
+              <span class="option-description">Aplica o efeito de tema escuro por inversão de cores. Execute novamente para desativar.</span>
+            </span>
+            <svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.0 15.2A8.5 8.5 0 0 1 8.8 4a8.6 8.6 0 1 0 11.2 11.2Z"/><path d="M16 3v4M14 5h4"/></svg>
+          </label>
+
+          <label class="option">
+            <input id="mediaFix" type="checkbox" checked>
+            <span class="option-copy">
+              <span class="option-title">Preservar cores de imagens e vídeos</span>
+              <span class="option-description">Compensa a inversão em imagens, vídeos, canvas e elementos SVG.</span>
+            </span>
+            <svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          </label>
+
+          <label class="option">
+            <input id="clipboard" type="checkbox" checked>
+            <span class="option-copy">
+              <span class="option-title">Permitir copiar, recortar e colar</span>
+              <span class="option-description">Interrompe alguns bloqueios de página baseados em eventos da área de transferência.</span>
+            </span>
+            <svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+          </label>
+
+          <label class="option">
+            <input id="floatingButton" type="checkbox" checked>
+            <span class="option-copy">
+              <span class="option-title">Botão flutuante de pesquisa</span>
+              <span class="option-description">Adiciona um botão na página que abre a pesquisa do Google em uma nova aba.</span>
+            </span>
+            <svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          </label>
+
+          <label class="option">
+            <input id="draggable" type="checkbox" checked>
+            <span class="option-copy">
+              <span class="option-title">Permitir arrastar o botão flutuante</span>
+              <span class="option-description">Permite reposicionar o botão com mouse, caneta ou toque.</span>
+            </span>
+            <svg class="option-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M2 12h20M12 2l-3 3m3-3 3 3M22 12l-3-3m3 3-3 3M12 22l-3-3m3 3 3-3M2 12l3-3m-3 3 3 3"/></svg>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="button" id="generate" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2L12 3Z"/><path d="m19 14 1.1 2.9L23 18l-2.9 1.1L19 22l-1.1-2.9L15 18l2.9-1.1L19 14Z"/></svg>
+            Gerar bookmarklet
+          </button>
+          <button class="button secondary" id="copy" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+            Copiar código
+          </button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite">Código inicial gerado. Personalize as opções e clique em “Gerar bookmarklet”.</p>
+      </section>
+
+      <section class="section">
+        <p class="section-label">Adicionar aos favoritos</p>
+        <p class="hint">Arraste o botão abaixo para a barra de favoritos do navegador. Depois, abra qualquer página e clique no favorito para executar.</p>
+        <a class="button bookmarklet-link" id="bookmarkletLink" href="javascript:void(0)" draggable="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>
+          <span class="drag-label"><strong>Arraste para os favoritos</strong><small>Bookmarklet personalizado</small></span>
+        </a>
+      </section>
+
+      <section class="section">
+        <p class="section-label">Código para copiar manualmente</p>
+        <div class="code-wrap">
+          <textarea id="codeOutput" spellcheck="false" readonly aria-label="Código do bookmarklet"></textarea>
+        </div>
+        <p class="footnote">O bookmarklet pode ser executado novamente para remover os recursos que ele adicionou. Alguns sites podem impedir a execução de bookmarklets por suas próprias políticas de segurança.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const darkMode = document.getElementById('darkMode');
+    const mediaFix = document.getElementById('mediaFix');
+    const clipboard = document.getElementById('clipboard');
+    const floatingButton = document.getElementById('floatingButton');
+    const draggable = document.getElementById('draggable');
+    const codeOutput = document.getElementById('codeOutput');
+    const bookmarkletLink = document.getElementById('bookmarkletLink');
+    const status = document.getElementById('status');
+
+    function buildBookmarklet() {
+      const selected = {
+        darkMode: darkMode.checked,
+        mediaFix: darkMode.checked && mediaFix.checked,
+        clipboard: clipboard.checked,
+        floatingButton: floatingButton.checked,
+        draggable: floatingButton.checked && draggable.checked
+      };
+
+      if (!Object.values(selected).some(Boolean)) {
+        status.textContent = 'Selecione pelo menos uma função para gerar o bookmarklet.';
+        return;
+      }
+
+      const parts = [
+        'javascript:(()=>{',
+        'const key="__estudanteBookmarkletState";',
+        'const previous=window[key];',
+        'if(previous){previous.controller.abort();document.getElementById("estudante-dark-style")?.remove();document.getElementById("estudante-float-box")?.remove();delete window[key];return;}',
+        'const controller=new AbortController();',
+        'window[key]={controller};'
+      ];
+
+      if (selected.darkMode) {
+        let css = 'html{filter:invert(.92) hue-rotate(180deg)!important;background-color:#121212!important;}body{background-color:#121212!important;}#estudante-float-box{filter:invert(0)!important;}';
+        if (selected.mediaFix) {
+          css += 'img,svg,canvas,video,[style*="background-image"]{filter:invert(1) hue-rotate(180deg)!important;}';
+        }
+        parts.push('const style=document.createElement("style");style.id="estudante-dark-style";style.textContent=' + JSON.stringify(css) + ';document.head.appendChild(style);');
+      }
+
+      if (selected.clipboard) {
+        parts.push('const unlock=e=>e.stopImmediatePropagation();["copy","cut","paste"].forEach(type=>document.addEventListener(type,unlock,{capture:true,signal:controller.signal}));');
+      }
+
+      if (selected.floatingButton) {
+        parts.push('const box=document.createElement("div");box.id="estudante-float-box";box.setAttribute("aria-label","Abrir pesquisa Google");box.style.cssText="position:fixed;top:100px;left:100px;width:60px;height:60px;background:#121212;border:1px solid rgba(255,255,255,.28);border-radius:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:2147483647;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none;";box.innerHTML="<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'27\' height=\'27\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'#f0f0f0\' stroke-width=\'1.8\' stroke-linecap=\'round\' stroke-linejoin=\'round\'><circle cx=\'11\' cy=\'11\' r=\'7\'/><path d=\'m20 20-4-4\'/></svg>";document.body.appendChild(box);');
+
+        if (selected.draggable) {
+          parts.push('let dragging=false,moved=false,startX=0,startY=0,originX=0,originY=0,pointerId=null;box.addEventListener("pointerdown",e=>{if(e.button!==0&&e.pointerType==="mouse")return;dragging=true;moved=false;pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;originX=box.offsetLeft;originY=box.offsetTop;box.setPointerCapture(pointerId);},{signal:controller.signal});box.addEventListener("pointermove",e=>{if(!dragging||e.pointerId!==pointerId)return;const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;if(moved){box.style.left=Math.max(0,Math.min(innerWidth-box.offsetWidth,originX+dx))+"px";box.style.top=Math.max(0,Math.min(innerHeight-box.offsetHeight,originY+dy))+"px";}},{signal:controller.signal});const stopDrag=()=>{dragging=false;pointerId=null;};box.addEventListener("pointerup",stopDrag,{signal:controller.signal});box.addEventListener("pointercancel",stopDrag,{signal:controller.signal});');
+          parts.push('box.addEventListener("click",()=>{if(!moved)window.open("https://www.google.com.br/search?udm=50","_blank","noopener");moved=false;},{signal:controller.signal});');
+        } else {
+          parts.push('box.addEventListener("click",()=>window.open("https://www.google.com.br/search?udm=50","_blank","noopener"),{signal:controller.signal});');
+        }
+      }
+
+      parts.push('})();');
+      const bookmarklet = 'javascript:' + encodeURIComponent(parts.join(''));
+      codeOutput.value = bookmarklet;
+      bookmarkletLink.href = bookmarklet;
+      status.textContent = 'Bookmarklet atualizado. Arraste o botão para os favoritos ou copie o código.';
+    }
+
+    darkMode.addEventListener('change', () => {
+      mediaFix.disabled = !darkMode.checked;
+      if (!darkMode.checked) mediaFix.checked = false;
+    });
+
+    floatingButton.addEventListener('change', () => {
+      draggable.disabled = !floatingButton.checked;
+      if (!floatingButton.checked) draggable.checked = false;
+    });
+
+    document.getElementById('generate').addEventListener('click', buildBookmarklet);
+
+    document.getElementById('copy').addEventListener('click', async () => {
+      if (!codeOutput.value) buildBookmarklet();
+      if (!codeOutput.value) return;
+      try {
+        await navigator.clipboard.writeText(codeOutput.value);
+        status.textContent = 'Código copiado para a área de transferência.';
+      } catch (error) {
+        codeOutput.focus();
+        codeOutput.select();
+        const copied = document.execCommand('copy');
+        status.textContent = copied ? 'Código copiado para a área de transferência.' : 'Selecione o código exibido e copie manualmente.';
+      }
+    });
+
+    bookmarkletLink.addEventListener('click', event => event.preventDefault());
+    buildBookmarklet();
+  </script>
+</body>
+</html>
